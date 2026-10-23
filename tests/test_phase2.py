@@ -308,6 +308,58 @@ def test_cancelalo_with_two_open_quotes_goes_to_human_review(client):
     assert review["status"] == "pending"
 
 
+def test_cancel_entire_quote_with_clear_target(client):
+    """Cancel a full quote when the target is unambiguous."""
+    phase1(client)
+    message(client, message_id="wamid.411.0240", conversation_id=ALICE,
+            text="y aparte cotizame 2 acrilicos blancos de 3mm porfa")
+
+    # Verify Q-002 was created
+    after_phase2 = client.get(f"/quotes?customer={CUSTOMER}").json()
+    quote_ids = [q["quote_id"] for q in after_phase2["quotes"]]
+    assert "Q-002" in quote_ids, f"Q-002 not found in {quote_ids}"
+
+    result = message(
+        client,
+        message_id="wamid.411.0700",
+        conversation_id=ALICE,
+        text="cancela la Q-002",
+    )
+
+    assert result["status"] == "processed"
+    assert result["intent"] == "cancel"
+    assert result["quote_id"] == "Q-002"
+
+    final = client.get(f"/quotes?customer={CUSTOMER}").json()
+    quotes = {q["quote_id"]: q for q in final["quotes"]}
+    assert quotes["Q-001"]["status"] == "draft"
+    assert quotes["Q-002"]["status"] == "cancelled"
+    assert quotes["Q-002"]["line_items"] == []
+
+
+def test_cancel_specific_products_from_quote(client):
+    """Cancel only specific SKUs, leaving the rest of the quote intact."""
+    phase1(client)
+
+    result = message(
+        client,
+        message_id="wamid.411.0700",
+        conversation_id=ALICE,
+        text="quita las lonas de la cotizacion",
+    )
+
+    assert result["status"] == "processed"
+    assert result["intent"] == "cancel"
+    assert result["quote_id"] == "Q-001"
+
+    final = client.get(f"/quotes?customer={CUSTOMER}").json()
+    quote = [q for q in final["quotes"] if q["quote_id"] == "Q-001"][0]
+    remaining_skus = [li["sku"] for li in quote["line_items"]]
+    assert LONA not in remaining_skus
+    assert MESH in remaining_skus
+    assert MICRO in remaining_skus
+
+
 def test_follow_up_enriches_the_open_review_instead_of_bypassing_it(client):
     phase1(client)
     message(client, message_id="wamid.411.0240", conversation_id=ALICE,

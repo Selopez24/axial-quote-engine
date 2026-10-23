@@ -1,0 +1,27 @@
+{
+  "customer_id": "C-10029",
+  "conversation_id": "wa-thread-411",
+  "customer_name": "Alice - ACME INDUSTRIAL",
+  "conversation_history": [
+    {
+      "direction": "inbound",
+      "timestamp": "2026-02-10T09:43:00Z",
+      "text": "Hola buenos dias, me ayudas a cotizar 20 rollos lona 3.20 x 100 m., 5 rollos de mesh de 3.20 x 100 m. y si cuentas con microperforado de 1.37 y 1.50 m."
+    },
+    {
+      "direction": "outbound",
+      "timestamp": "2026-02-10T09:45:00Z",
+      "text": "Hola buen día. Si. Cuantas piezas de microperforado"
+    },
+    {
+      "direction": "outbound",
+      "timestamp": "2026-02-10T09:45:30Z",
+      "text": "De momento sería de 1.37x50"
+    },
+    {
+      "direction": "inbound",
+      "timestamp": "2026-02-10T09:46:00Z",
+      "text": "Necesitamos 5 rollos"
+    }
+  ]
+}

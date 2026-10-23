@@ -107,6 +107,43 @@ def extract(catalog: dict[str, str], customer_context: str, history: list[dict],
                 reason="cambio de cantidad",
             )
 
+    # cancellation with clear target: "cancela la Q-001", "quita las lonas"
+    # MUST come before the generic number check so "cancela la Q-002" isn't
+    # misclassified as a revision just because the quote id contains a digit.
+    if "cancel" in text or "quita" in text or "elimina" in text:
+        if skus:
+            target = target_for(skus[0])
+            if target:
+                return ExtractionResult(
+                    intent="cancel",
+                    confidence=0.9,
+                    target_quote_id=target,
+                    line_items=[{"sku": s, "quantity": 0} for s in skus],
+                    mentions_new_request=False,
+                    reason=f"cancelacion de productos: {', '.join(skus)}",
+                )
+        elif re.search(r"q-\d+", text, re.IGNORECASE):
+            qid = re.search(r"q-\d+", text, re.IGNORECASE).group().upper()
+            if qid in [q for q, _ in quotes]:
+                return ExtractionResult(
+                    intent="cancel",
+                    confidence=0.95,
+                    target_quote_id=qid,
+                    line_items=[],
+                    mentions_new_request=False,
+                    reason=f"cancelacion completa de {qid}",
+                )
+        # "cancelalo" / "mejor cancelalo" without explicit target is always
+        # ambiguous — the user must name the quote or the products.
+        return ExtractionResult(
+            intent="unclear",
+            confidence=0.3,
+            target_quote_id=None,
+            line_items=[],
+            mentions_new_request=False,
+            reason=f"cancelacion sin target claro ({len(quotes)} cotizaciones abiertas)",
+        )
+
     # adding a line to an existing quote: "Necesitamos 5 rollos" answering the rep
     if re.search(r"\b(\d+)\b", text) and any(q for q, _ in quotes):
         qty = int(re.search(r"\b(\d+)\b", text).group(1))
@@ -136,17 +173,6 @@ def extract(catalog: dict[str, str], customer_context: str, history: list[dict],
                 mentions_new_request=False,
                 reason="consulta sin cambio",
             )
-
-    # genuinely ambiguous: "mejor cancelalo" with more than one open quote
-    if "cancel" in text:
-        return ExtractionResult(
-            intent="unclear",
-            confidence=0.3,
-            target_quote_id=None,
-            line_items=[],
-            mentions_new_request=False,
-            reason=f"hay {len(quotes)} cotizaciones abiertas, no se cual es",
-        )
 
     return ExtractionResult(
         intent="unclear",

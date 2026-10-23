@@ -197,6 +197,60 @@ def upsert_line_item(
     return {"sku": sku, "action": "update", "from": old, "to": quantity}
 
 
+def cancel_quote(db: Session, quote_id: str, message_id: str | None = None) -> dict:
+    """Cancel an entire quote by setting status to 'cancelled' and removing all line items.
+    
+    Returns audit record: {"quote_id", "action": "cancel", "line_items_deleted": count}
+    """
+    quote = db.get(Quote, quote_id)
+    if quote is None:
+        return {"quote_id": quote_id, "action": "cancel", "error": "not_found"}
+    
+    # Delete all line items before cancelling
+    line_items_count = len(quote.line_items)
+    for item in quote.line_items:
+        db.delete(item)
+    
+    old_status = quote.status
+    quote.status = "cancelled"
+    if quote.metadata_ is None:
+        quote.metadata_ = {}
+    quote.metadata_["cancelled_by_message_id"] = message_id
+    db.flush()
+    return {
+        "quote_id": quote_id, 
+        "action": "cancel", 
+        "from": old_status, 
+        "to": "cancelled",
+        "line_items_deleted": line_items_count
+    }
+
+
+def delete_line_items(
+    db: Session,
+    quote_id: str,
+    skus: list[str],
+    message_id: str | None = None,
+) -> list[dict]:
+    """Delete specific line items from a quote by SKU.
+    
+    Returns list of change records: [{"sku", "action": "delete", "from": qty, "to": None}]
+    """
+    changes = []
+    for sku in skus:
+        item = db.scalars(
+            select(LineItem).where(LineItem.quote_id == quote_id, LineItem.sku == sku)
+        ).first()
+        
+        if item is not None:
+            old_qty = item.quantity
+            db.delete(item)
+            changes.append({"sku": sku, "action": "delete", "from": old_qty, "to": None})
+    
+    db.flush()
+    return changes
+
+
 # ---------- Quote <-> conversation links ----------
 
 def link_quote_conversation(

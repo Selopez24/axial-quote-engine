@@ -60,9 +60,14 @@ class ExtractionResult(BaseModel):
     A live real-model probe beyond the guide found these being parsed as
     unclear — parked, and then swallowing every later message of the thread
     into that review. Inert intent, no state, no review.
+
+    `cancel` is recognized but not implemented: when a customer says "cancelalo"
+    or similar, the LLM can now return this intent. It routes to pending review
+    (like unclear) because cancellation logic — which quote? partial or full?
+    — is not yet wired up. A human decides.
     """
 
-    intent: Literal["new_quote", "revision", "reference", "other", "unclear"]
+    intent: Literal["new_quote", "revision", "reference", "other", "cancel", "unclear"]
     confidence: float = Field(ge=0.0, le=1.0)
     target_quote_id: str | None = None
     line_items: list[ExtractedLine] = Field(default_factory=list)

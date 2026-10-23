@@ -60,19 +60,21 @@ def validate(
         if line.sku not in valid_skus:
             unknown.append(line.sku)
             continue
-        if not isinstance(line.quantity, int) or line.quantity <= 0:
-            issues.append("invalid_quantity")
-            continue
-        if line.quantity > MAX_QUANTITY:
-            issues.append("invalid_quantity")
-            continue
+        # For cancel intent, we only need SKUs (quantity doesn't matter)
+        if result.intent != "cancel":
+            if not isinstance(line.quantity, int) or line.quantity <= 0:
+                issues.append("invalid_quantity")
+                continue
+            if line.quantity > MAX_QUANTITY:
+                issues.append("invalid_quantity")
+                continue
         clean_lines.append(line)
     if unknown:
         issues.append("unknown_sku")
 
     # 4. quote reference gate
     target = result.target_quote_id
-    if result.intent in ("revision", "reference"):
+    if result.intent in ("revision", "reference", "cancel"):
         if target is None:
             # A fallback is only allowed when exactly one quote could be meant:
             # first the customer's single open quote, then this conversation's
@@ -98,6 +100,9 @@ def validate(
 
     if result.intent == "new_quote" and not clean_lines:
         issues.append("nothing_to_quote")
+
+    if result.intent == "cancel" and target is None:
+        issues.append("cancel_requires_target")
 
     return {
         "ok": not issues,

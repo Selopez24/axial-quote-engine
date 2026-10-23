@@ -16,5 +16,18 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build: .
+    container_name: quote-engine-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/quote_engine
+      SEED_SCENARIO: ${SEED_SCENARIO:-0}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "8000:8000"
+
 volumes:
   postgres_data:

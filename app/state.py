@@ -11,8 +11,10 @@ special cases.
 from sqlalchemy.orm import Session
 
 from app.repositories import (
+    cancel_quote,
     create_pending_review,
     create_quote,
+    delete_line_items,
     get_pending_review,
     link_quote_conversation,
     upsert_line_item,
@@ -43,10 +45,20 @@ def apply_validated(
         quote_id = create_quote(db, customer_id, created_by_message_id=message_id).quote_id
     elif intent in ("revision", "reference"):
         quote_id = validation["target_quote_id"]
+    elif intent == "cancel":
+        quote_id = validation["target_quote_id"]
 
     changes: list[dict] = []
     linked = False
-    if quote_id:
+    
+    if intent == "cancel":
+        # Cancel specific line items if provided, otherwise cancel entire quote
+        if validation["clean_lines"]:
+            skus_to_delete = [line.sku for line in validation["clean_lines"]]
+            changes = delete_line_items(db, quote_id, skus_to_delete, message_id=message_id)
+        else:
+            changes = [cancel_quote(db, quote_id, message_id=message_id)]
+    elif quote_id:
         for line in validation["clean_lines"]:
             changes.append(
                 upsert_line_item(db, quote_id, line.sku, line.quantity, message_id=message_id)

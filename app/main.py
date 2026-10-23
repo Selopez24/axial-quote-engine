@@ -31,6 +31,18 @@ async def validation_to_400(request, exc: RequestValidationError):
 # database instead, so running tests never writes to dev data.
 if os.getenv("QUOTE_ENGINE_AUTOINIT", "1") != "0":
     init_db()
+    
+    # Optional: seed the Phase 1 scenario on startup (for demos/reviewer convenience).
+    # Set SEED_SCENARIO=1 to load db/scenario_phase1.json through the pipeline.
+    # Requires OPENAI_API_KEY (the pipeline needs the LLM for extraction).
+    if os.getenv("SEED_SCENARIO", "0") in {"1", "true", "yes"}:
+        from app.seed_scenario import seed_scenario
+        from app.database import SessionLocal
+        session = SessionLocal()
+        try:
+            seed_scenario(session)
+        finally:
+            session.close()
 
 # Include routers
 app.include_router(messages.router, tags=["messages"])
