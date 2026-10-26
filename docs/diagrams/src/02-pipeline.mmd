@@ -1,0 +1,14 @@
+flowchart TD
+    MSG["📥 WhatsApp message arrives"] --> DUP{"message_id<br/>already seen?"}
+    DUP -- "webhook retry → no-op,<br/>state untouched" --> INERT["✅ free"]
+    DUP -- no --> CTX["🔍 Build context: customer,<br/>open quotes + lines, recent chats"]
+    CTX --> LLM["🧠 LLM call — understand:<br/>intent · confidence · target quote · items"]
+    LLM --> VAL{"⚙️ Validate with code:<br/>SKUs exist? · qty sane?<br/>conf ≥ 0.7? · target open?"}
+    VAL -- "invalid / unclear" --> REVIEW["⏸ Park for human review —<br/>never push a guess toward the ERP"]
+    VAL -- valid --> APPLY["✍️ Apply with code:<br/>upsert lines · cancel · stamp provenance<br/>link chats ↔ quotes"]
+    APPLY --> DB[("🗄️ Postgres — survives restarts")]
+    REVIEW --> HUMAN["👤 Human: apply · new quote · discard"]
+    HUMAN --> DB
+
+    style VAL fill:#fff4e6
+    style REVIEW fill:#ffebee

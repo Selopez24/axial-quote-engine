@@ -19,7 +19,7 @@ sequenceDiagram
     participant S as State (Postgres)
 
     rect rgb(235, 245, 255)
-    Note over A,S: Phase 1 — fragmented chat becomes a draft quote
+    Note over A,S: Phase 1 — fragmented chat becomes a draft quote<br/>(4 messages compressed — the microperforado qty arrives after the rep asks)
     A->>E: "20 rollos lona 3.20, 5 mesh, 5 microperforado"
     E->>S: creates Q-001 with 3 line items
     Note over E,S: every line stamped with the message that wrote it
@@ -55,9 +55,10 @@ sequenceDiagram
 ```
 
 **Presenter notes:** open with Izzy keeping all this "in her head" today; each
-numbered arrow is one WhatsApp message. The naive designs die here: a chat
-holding a `quote_id` breaks at Event 3; a quote holding a `chat_id` breaks at
-Event 2.
+numbered pair is one message (odd) and the state it wrote (even) — Phase 1
+compresses four messages into one pair (the microperforado quantity arrives
+after the rep asks). The naive designs die here: a chat holding a `quote_id`
+breaks at Event 3; a quote holding a `chat_id` breaks at Event 2.
 
 ---
 
@@ -74,8 +75,8 @@ flowchart TD
     DUP -- "no" --> CTX["🔍 Build context<br/>customer · open quotes + lines<br/>last 20 messages of each linked chat"]
     CTX --> LLM["🧠 One LLM call<br/>classify + extract:<br/>intent · confidence · target quote · line items"]
     LLM --> VAL{"⚙️ Deterministic validation<br/>SKUs exist in catalog? quantities sane?<br/>confidence ≥ 0.7? target quote open?"}
-    VAL -- "unclear intent,<br/>low confidence" --> REVIEW["⏸ Parked for human review<br/>nothing pushed toward the ERP<br/>on a guess"]
-    VAL -- "valid" --> APPLY["✍️ Apply with code<br/>upsert lines · stamp provenance<br/>write chat ↔ quote links"]
+    VAL -- "invalid: unclear, unknown SKU,<br/>bad quantity, unknown target" --> REVIEW["⏸ Parked for human review<br/>nothing pushed toward the ERP<br/>on a guess"]
+    VAL -- "valid" --> APPLY["✍️ Apply with code<br/>upsert lines · cancel · stamp provenance<br/>write chat ↔ quote links"]
     APPLY --> DB[("🗄️ Postgres<br/>survives restarts")]
     REVIEW --> HUMAN["👤 Human resolves:<br/>apply · new quote · discard"]
     HUMAN --> DB
@@ -88,6 +89,8 @@ flowchart TD
 code decides*. Model errors become review items, never corrupt quotes. CEO
 framing: the review queue is what makes this deployable — an ambiguous
 "mejor cancelalo" never cancels the wrong quote; it asks a human instead.
+And when the customer *names* the quote ("cancela la Q-002"), cancellation
+executes immediately with full provenance.
 
 ---
 
@@ -109,7 +112,7 @@ erDiagram
         string last_changed_by_message_id "which message last revised it"
     }
     QUOTE_CONVERSATIONS {
-        string message_id "which message created the link"
+        string metadata "JSONB · stores the message_id that created the link"
     }
     QUOTES ||--o{ QUOTE_CONVERSATIONS : ""
     CONVERSATIONS ||--o{ QUOTE_CONVERSATIONS : ""
@@ -118,7 +121,9 @@ erDiagram
 **Presenter notes:** the join table carries provenance too — you can answer
 "which message linked Mario's chat to Q-001?" The line items keep per-line
 message provenance, so a human sees exactly what changed and why. Two shortcuts
-both break; the join table means all four events are just rows.
+both break; the join table means all four events are just rows. Reviews, the
+dedupe gate and the catalog are plain tables alongside it — the join table is
+the decision.
 
 ---
 
@@ -128,16 +133,18 @@ If the CEO/CTO probe on "what happens at 1,000 conversations/day", have this
 one ready — but don't lead with it:
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph today["Today (1,000/day fits)"]
         W1["single process"] --> PG[(Postgres)]
     end
+    PG -.->|"1,000+/day: insert a queue"| Q
     subgraph next["First changes under pressure"]
         Q["queue partitioned by<br/>conversation_id"] --> W2["worker per chat<br/>no interleaved revisions"]
         W2 --> PG2[(Postgres)]
-        CACHE["prompt cache:<br/>static catalog + rules = 0.1× cost<br/>per-token window"]
+        CACHE["prompt cache: static catalog + rules<br/>stable turns read at 0.1× cost<br/>window: last 20 messages per chat"]
+        CACHE -.->|"feeds every call"| W2
     end
-    METRIC["📈 metric that matters:<br/>review-queue depth =<br/>how good the prompts are"]
+    Q -.->|"depth = prompt quality"| METRIC["📈 metric that matters:<br/>review-queue depth"]
 ```
 
 Suggested story: cost dominates first (mitigated by prompt-cache shape), then

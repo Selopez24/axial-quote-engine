@@ -1,0 +1,4 @@
+{
+  "flowchart": { "wrappingWidth": 700 },
+  "themeCSS": ".nodeLabel { max-width: 750px !important; } .edgeLabel { max-width: 750px !important; } .label text { max-width: 750px !important; }"
+}

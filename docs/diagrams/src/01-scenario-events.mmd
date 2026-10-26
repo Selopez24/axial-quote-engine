@@ -6,7 +6,7 @@ sequenceDiagram
     participant S as State (Postgres)
 
     rect rgb(235, 245, 255)
-    Note over A,S: Phase 1 — fragmented chat becomes a draft quote
+    Note over A,S: Phase 1 — fragmented chat becomes a draft quote<br/>(4 messages compressed — the microperforado qty arrives after the rep asks)
     A->>E: "20 rollos lona 3.20, 5 mesh, 5 microperforado"
     E->>S: creates Q-001 with 3 line items
     Note over E,S: every line stamped with the message that wrote it
