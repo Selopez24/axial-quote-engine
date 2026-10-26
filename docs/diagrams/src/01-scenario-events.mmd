@@ -1,0 +1,41 @@
+sequenceDiagram
+    autonumber
+    participant A as Alice's chat 💬 (wa-thread-411)
+    participant M as Mario's chat 💬 (wa-thread-662)
+    participant E as Engine
+    participant S as State (Postgres)
+
+    rect rgb(235, 245, 255)
+    Note over A,S: Phase 1 — fragmented chat becomes a draft quote
+    A->>E: "20 rollos lona 3.20, 5 mesh, 5 microperforado"
+    E->>S: creates Q-001 with 3 line items
+    Note over E,S: every line stamped with the message that wrote it
+    end
+
+    rect rgb(255, 248, 235)
+    Note over A,S: Event 1 — a revision, same chat
+    A->>E: "de las lonas mejor que sean 15, no 20"
+    E->>S: Q-001 · lona qty 20 → 15
+    end
+
+    rect rgb(255, 248, 235)
+    Note over A,S: Event 2 — a SECOND chat asks about the SAME quote
+    M->>E: "soy Mario de compras, ¿qué lleva la cotización de las lonas?"
+    E->>S: no lines change — chat is now linked to Q-001
+    Note over E,S: Q-001 now has two chats feeding it
+    end
+
+    rect rgb(255, 248, 235)
+    Note over A,S: Event 3 — "aparte": one chat now feeds TWO quotes
+    A->>E: "y aparte cotízame 2 acrílicos blancos"
+    E->>S: creates Q-002 with 2× Acrílico
+    end
+
+    rect rgb(255, 240, 240)
+    Note over A,S: Event 4 — the test: a revision arrives from the OTHER chat
+    M->>E: "los acrílicos que cotizó Alice, mejor que sean 4"
+    E->>S: Q-002 · acrílico qty 2 → 4
+    Note over M,S: it arrived in Mario's chat, but "los acrílicos" names the quote —<br/>the chat it arrived in does NOT decide
+    end
+
+    Note over A,S: Final state: both quotes linked to both chats, every quantity correct,<br/>every quantity traceable to the message that wrote it

@@ -1,0 +1,10 @@
+flowchart LR
+    subgraph today["Today (1,000/day fits)"]
+        W1["single process"] --> PG[(Postgres)]
+    end
+    subgraph next["First changes under pressure"]
+        Q["queue partitioned by<br/>conversation_id"] --> W2["worker per chat<br/>no interleaved revisions"]
+        W2 --> PG2[(Postgres)]
+        CACHE["prompt cache:<br/>static catalog + rules = 0.1× cost<br/>per-token window"]
+    end
+    METRIC["📈 metric that matters:<br/>review-queue depth =<br/>how good the prompts are"]

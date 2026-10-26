@@ -1,0 +1,16 @@
+erDiagram
+    CUSTOMERS ||--o{ CONVERSATIONS : "opens threads"
+    CUSTOMERS ||--o{ QUOTES : "receives quotes"
+    CONVERSATIONS }o--o{ QUOTES : "🔗 many-to-many:<br/>a quote fed by many chats,<br/>a chat feeding many quotes"
+    QUOTES ||--o{ LINE_ITEMS : "contains"
+    LINE_ITEMS {
+        string sku
+        int quantity
+        string created_by_message_id "which message created it"
+        string last_changed_by_message_id "which message last revised it"
+    }
+    QUOTE_CONVERSATIONS {
+        string message_id "which message created the link"
+    }
+    QUOTES ||--o{ QUOTE_CONVERSATIONS : ""
+    CONVERSATIONS ||--o{ QUOTE_CONVERSATIONS : ""

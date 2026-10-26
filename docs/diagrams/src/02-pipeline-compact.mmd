@@ -1,0 +1,12 @@
+flowchart TD
+    MSG["📥 WhatsApp message arrives<br/>deduped by message_id"] --> CTX["🔍 Build context: customer,<br/>open quotes + lines, recent chats"]
+    CTX --> LLM["🧠 LLM call — understand:<br/>intent · confidence · target quote · items"]
+    LLM --> VAL{"⚙️ Validate with code:<br/>SKUs in catalog? confidence ≥ 0.7?<br/>target quote open?"}
+    VAL -- "unclear / low confidence" --> REVIEW["⏸ Park for human review —<br/>never push a guess toward the ERP"]
+    VAL -- valid --> APPLY["✍️ Apply with code:<br/>upsert lines · stamp provenance<br/>link chats ↔ quotes"]
+    APPLY --> DB[("🗄️ Postgres — survives restarts")]
+    REVIEW --> HUMAN["👤 Human: apply · new quote · discard"]
+    HUMAN --> DB
+
+    style VAL fill:#fff4e6
+    style REVIEW fill:#ffebee
