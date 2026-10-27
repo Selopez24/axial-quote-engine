@@ -1,0 +1,28 @@
+flowchart LR
+    MSG["📥 message<br/>+ recent turns"] --> EXT
+
+    subgraph S1["Stage 1 — resolve products (meaning → membership)"]
+        EXT["🧠 LLM · small model<br/>extract descriptors, never SKUs:<br/>product · width · length · qty"] --> SRCH["⚙️ deterministic catalog search<br/>SQL FTS / trigram"]
+        SRCH --> RES{"match result"}
+        RES -- "unique" --> BIND["✅ bind SKU"]
+        RES -- "2–3 candidates" --> CAND["📎 pass top-3 forward —<br/>LLM picks with conversation context"]
+        RES -- "no match" --> UNK["❓ unknown product →<br/>clarify / park, never invent"]
+    end
+
+    BIND --> INT
+    CAND --> INT
+
+    subgraph S2["Stage 2 — decide action"]
+        INT["🧠 LLM · intent + target quote<br/>sees resolved SKUs only"] --> VAL{"⚙️ validate with code:<br/>SKUs exist? qty sane?<br/>confidence ≥ 0.7?"}
+        VAL -- valid --> APPLY["✍️ apply mutation<br/>+ provenance stamp"]
+        VAL -- "unclear" --> PARK["⏸ park for review"]
+    end
+
+    APPLY --> PG[("🗄️ Postgres")]
+    PARK --> PG
+
+    style S1 fill:#eef4ff,stroke:#9db4d8
+    style S2 fill:#eef8f0,stroke:#9dc8ab
+    style VAL fill:#fff4e6
+    style PARK fill:#ffebee
+    style UNK fill:#ffebee
